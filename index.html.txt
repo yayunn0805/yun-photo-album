@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>雲端相簿</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'primary-pink': '#FCC5CC',
+                        'light-pink': '#FFF0F2',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .loading { display: none; }
+        .loading.active { display: flex; }
+        body {
+            background: linear-gradient(135deg, #ffffff 0%, #FFF0F2 100%);
+        }
+        /* 客製化滾動條 */
+        #records-list::-webkit-scrollbar {
+            width: 4px;
+        }
+        #records-list::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        #records-list::-webkit-scrollbar-thumb {
+            background: #FCC5CC;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+
+    <div id="app" class="bg-white/80 backdrop-blur-sm p-8 rounded-3xl shadow-[0_20px_50px_rgba(252,197,204,0.3)] w-full max-w-md border border-white">
+        <div class="flex justify-center mb-4">
+            <div class="bg-primary-pink p-3 rounded-2xl shadow-inner">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+            </div>
+        </div>
+        <h1 class="text-2xl font-bold mb-6 text-center text-gray-700 tracking-tight">雲端相簿</h1>
+
+        <!-- 登入區塊 -->
+        <div id="login-section" class="flex flex-col items-center">
+            <p class="mb-6 text-gray-500 text-sm">歡迎回來，請登入您的帳號</p>
+            <button id="btn-login" class="w-full flex items-center justify-center bg-white border border-gray-100 rounded-2xl px-6 py-3 text-sm font-semibold text-gray-600 hover:bg-gray-50 focus:outline-none shadow-sm transition-all hover:shadow-md active:scale-95">
+                <img class="w-5 h-5 mr-3" src="https://www.gstatic.com/images/branding/product/1x/gsa_512dp.png" alt="Google Logo">
+                使用 Google 登入
+            </button>
+        </div>
+
+        <!-- 使用者操作區塊 (預設隱藏) -->
+        <div id="user-section" class="hidden">
+            <div class="flex items-center justify-between mb-8 p-3 bg-light-pink rounded-2xl border border-white shadow-sm">
+                <div class="flex items-center">
+                    <img id="user-photo" class="w-10 h-10 rounded-xl mr-3 border-2 border-white shadow-sm" src="" alt="User">
+                    <div class="overflow-hidden">
+                        <p id="user-name" class="font-bold text-gray-700 text-sm truncate"></p>
+                        <p id="user-email" class="text-[10px] text-gray-400 truncate"></p>
+                    </div>
+                </div>
+                <button id="btn-logout" class="p-2 text-primary-pink hover:text-red-400 transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                    </svg>
+                </button>
+            </div>
+
+            <div class="space-y-5">
+                <div class="relative">
+                    <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 ml-1">上傳新圖片</label>
+                    <label for="file-input" class="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-primary-pink/30 rounded-2xl bg-light-pink/30 hover:bg-light-pink/50 cursor-pointer transition-all group">
+                        <div class="flex flex-col items-center justify-center pt-5 pb-6">
+                            <svg class="w-8 h-8 mb-3 text-primary-pink group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                            </svg>
+                            <p class="text-xs text-gray-500">點擊或拖放圖片</p>
+                        </div>
+                        <input type="file" id="file-input" accept="image/*" class="hidden">
+                    </label>
+                </div>
+                
+                <div id="preview-container" class="hidden animate-in fade-in zoom-in duration-300">
+                    <div class="relative">
+                        <img id="img-preview" class="w-full h-40 object-cover rounded-2xl border-4 border-white shadow-lg">
+                        <div class="absolute inset-0 rounded-2xl shadow-[inset_0_0_20px_rgba(0,0,0,0.1)] pointer-events-none"></div>
+                    </div>
+                </div>
+
+                <button id="btn-upload" class="w-full bg-primary-pink text-white py-3 rounded-2xl font-bold shadow-lg shadow-primary-pink/30 hover:bg-[#FBAEB8] disabled:bg-gray-200 disabled:shadow-none transition-all active:scale-95" disabled>
+                    確認上傳
+                </button>
+            </div>
+
+            <div class="mt-10">
+                <h2 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4 ml-1">相簿時光機</h2>
+                <div id="records-list" class="space-y-3 max-h-64 overflow-y-auto pr-2">
+                    <p class="text-center text-gray-300 text-sm py-8 font-medium">還沒有任何照片喔</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 讀取狀態遮罩 -->
+        <div id="loader" class="loading fixed inset-0 bg-white/60 backdrop-blur-md items-center justify-center z-50">
+            <div class="flex flex-col items-center">
+                <div class="relative w-16 h-16">
+                    <div class="absolute inset-0 rounded-full border-4 border-primary-pink/20"></div>
+                    <div class="absolute inset-0 rounded-full border-4 border-t-primary-pink animate-spin"></div>
+                </div>
+                <p class="mt-4 text-primary-pink font-bold text-sm">少女心中...</p>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { 
+            getAuth, 
+            signInWithPopup, 
+            GoogleAuthProvider, 
+            onAuthStateChanged, 
+            signOut 
+        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { 
+            getFirestore, 
+            collection, 
+            addDoc, 
+            onSnapshot, 
+            serverTimestamp 
+        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyA-qw36OlMwhtkALOJRTyO-k0MSSVivog0",
+            authDomain: "yunn-a3426.firebaseapp.com",
+            projectId: "yunn-a3426",
+            storageBucket: "yunn-a3426.firebasestorage.app",
+            messagingSenderId: "255290205366",
+            appId: "1:255290205366:web:9316ab84a82e0f81c1b217"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const provider = new GoogleAuthProvider();
+        const appId = "yunn-a3426";
+
+        const loginSection = document.getElementById('login-section');
+        const userSection = document.getElementById('user-section');
+        const btnLogin = document.getElementById('btn-login');
+        const btnLogout = document.getElementById('btn-logout');
+        const btnUpload = document.getElementById('btn-upload');
+        const fileInput = document.getElementById('file-input');
+        const imgPreview = document.getElementById('img-preview');
+        const previewContainer = document.getElementById('preview-container');
+        const recordsList = document.getElementById('records-list');
+        const loader = document.getElementById('loader');
+
+        let currentBase64 = "";
+        let currentUser = null;
+        let unsubscribeRecords = null;
+
+        btnLogin.addEventListener('click', async () => {
+            try {
+                toggleLoader(true);
+                await signInWithPopup(auth, provider);
+            } catch (error) {
+                console.error("Login error", error);
+            } finally {
+                toggleLoader(false);
+            }
+        });
+
+        btnLogout.addEventListener('click', () => signOut(auth));
+
+        onAuthStateChanged(auth, (user) => {
+            currentUser = user;
+            if (user) {
+                loginSection.classList.add('hidden');
+                userSection.classList.remove('hidden');
+                document.getElementById('user-name').innerText = user.displayName;
+                document.getElementById('user-email').innerText = user.email;
+                document.getElementById('user-photo').src = user.photoURL;
+                fetchRecords(user.uid);
+            } else {
+                loginSection.classList.remove('hidden');
+                userSection.classList.add('hidden');
+                if (unsubscribeRecords) unsubscribeRecords();
+                recordsList.innerHTML = '<p class="text-center text-gray-300 text-sm py-8 font-medium">還沒有任何照片喔</p>';
+            }
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            if (file.size > 800000) {
+                alert("圖片太大了！請選擇小於 800KB 的圖片。");
+                fileInput.value = "";
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                currentBase64 = event.target.result;
+                imgPreview.src = currentBase64;
+                previewContainer.classList.remove('hidden');
+                btnUpload.disabled = false;
+            };
+            reader.readAsDataURL(file);
+        });
+
+        btnUpload.addEventListener('click', async () => {
+            if (!currentUser || !currentBase64) return;
+
+            try {
+                toggleLoader(true);
+                const userPhotosCol = collection(db, 'artifacts', appId, 'users', currentUser.uid, 'photos');
+                
+                await addDoc(userPhotosCol, {
+                    imageBase64: currentBase64,
+                    createdAt: serverTimestamp(),
+                    fileName: fileInput.files[0].name
+                });
+
+                fileInput.value = "";
+                previewContainer.classList.add('hidden');
+                btnUpload.disabled = true;
+                currentBase64 = "";
+                
+            } catch (error) {
+                console.error("Upload error", error);
+            } finally {
+                toggleLoader(false);
+            }
+        });
+
+        function fetchRecords(uid) {
+            const userPhotosCol = collection(db, 'artifacts', appId, 'users', uid, 'photos');
+            unsubscribeRecords = onSnapshot(userPhotosCol, (snapshot) => {
+                const docs = [];
+                snapshot.forEach(doc => docs.push({ id: doc.id, ...doc.data() }));
+                docs.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+
+                if (docs.length === 0) {
+                    recordsList.innerHTML = '<p class="text-center text-gray-300 text-sm py-8 font-medium">還沒有任何照片喔</p>';
+                    return;
+                }
+
+                recordsList.innerHTML = docs.map(doc => `
+                    <div class="group flex items-center p-3 bg-white rounded-2xl border border-light-pink shadow-sm hover:shadow-md transition-all">
+                        <div class="relative">
+                            <img src="${doc.imageBase64}" class="w-14 h-14 object-cover rounded-xl bg-gray-100 border border-light-pink">
+                            <div class="absolute inset-0 rounded-xl shadow-[inset_0_0_10px_rgba(252,197,204,0.2)]"></div>
+                        </div>
+                        <div class="ml-4 flex-1 min-w-0">
+                            <p class="text-sm font-bold text-gray-600 truncate">${doc.fileName || '生活片段'}</p>
+                            <p class="text-[10px] text-primary-pink font-medium uppercase tracking-tighter">
+                                ${doc.createdAt ? new Date(doc.createdAt.seconds * 1000).toLocaleDateString() : '保存中...'}
+                            </p>
+                        </div>
+                        <div class="opacity-0 group-hover:opacity-100 transition-opacity">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-primary-pink" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                            </svg>
+                        </div>
+                    </div>
+                `).join('');
+            });
+        }
+
+        function toggleLoader(show) {
+            loader.classList.toggle('active', show);
+        }
+    </script>
+</body>
+</html>
