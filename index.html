@@ -1,284 +1,295 @@
-<!DOCTYPE html>
-<html lang="zh-Hant">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>雲端相簿</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        'primary-pink': '#FCC5CC',
-                        'light-pink': '#FFF0F2',
-                    }
-                }
-            }
-        }
-    </script>
-    <style>
-        .loading { display: none; }
-        .loading.active { display: flex; }
-        body {
-            background: linear-gradient(135deg, #ffffff 0%, #FFF0F2 100%);
-        }
-        /* 客製化滾動條 */
-        #records-list::-webkit-scrollbar {
-            width: 4px;
-        }
-        #records-list::-webkit-scrollbar-track {
-            background: #f1f1f1;
-        }
-        #records-list::-webkit-scrollbar-thumb {
-            background: #FCC5CC;
-            border-radius: 10px;
-        }
-    </style>
-</head>
-<body class="min-h-screen flex items-center justify-center p-4">
+import React, { useState, useMemo } from 'react';
+import { 
+  LayoutDashboard, 
+  Library, 
+  Heart, 
+  TrendingUp, 
+  PlusCircle, 
+  Search, 
+  DollarSign, 
+  Star, 
+  Package,
+  X,
+  ChevronRight,
+  Trash2,
+  Info,
+  ExternalLink,
+  Calendar,
+  Tag
+} from 'lucide-react';
 
-    <div id="app" class="bg-white/80 backdrop-blur-sm p-8 rounded-3xl shadow-[0_20px_50px_rgba(252,197,204,0.3)] w-full max-w-md border border-white">
-        <div class="flex justify-center mb-4">
-            <div class="bg-primary-pink p-3 rounded-2xl shadow-inner">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
+const App = () => {
+  const [activeTab, setActiveTab] = useState('dashboard');
+  const [searchQuery, setSearchQuery] = useState('');
+  
+  const [collections, setCollections] = useState([
+    { id: 1, name: '1962 復古相機', category: '相機', value: 15000, rating: 4.5, date: '2023-12-01', note: '保存良好，快門正常，附原廠皮套。' },
+    { id: 2, name: '噴火龍首刷閃卡', category: '卡片', value: 85000, rating: 5.0, date: '2024-01-15', note: 'PSA 10 鑑定等級，極具收藏價值。' },
+    { id: 3, name: '限量版黑膠唱片', category: '音樂', value: 4200, rating: 4.0, date: '2024-03-20', note: '披頭四限量版，側標完整。' },
+  ]);
+
+  const [wishlist] = useState([
+    { id: 101, name: '勞力士水鬼系列', category: '手錶', expectedPrice: 350000 },
+    { id: 102, name: '徠卡 M6', category: '相機', expectedPrice: 120000 },
+  ]);
+
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [newItem, setNewItem] = useState({ name: '', category: '', value: '', rating: '5', note: '' });
+  const [selectedItem, setSelectedItem] = useState(null);
+
+  const stats = useMemo(() => {
+    const totalValue = collections.reduce((acc, curr) => acc + Number(curr.value), 0);
+    const avgRating = collections.length > 0 
+      ? (collections.reduce((acc, curr) => acc + Number(curr.rating), 0) / collections.length).toFixed(1)
+      : 0;
+    const thisMonthCount = collections.filter(item => {
+      const date = new Date(item.date);
+      const now = new Date();
+      return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
+    }).length;
+
+    return { totalValue, avgRating, thisMonthCount };
+  }, [collections]);
+
+  const filteredCollections = collections.filter(item => 
+    item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    item.category.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const handleAddItem = (e) => {
+    e.preventDefault();
+    const item = { ...newItem, id: Date.now(), date: new Date().toISOString().split('T')[0], value: Number(newItem.value) };
+    setCollections([item, ...collections]);
+    setIsModalOpen(false);
+    setNewItem({ name: '', category: '', value: '', rating: '5', note: '' });
+  };
+
+  const handleDeleteItem = (id, e) => {
+    e.stopPropagation();
+    setCollections(collections.filter(item => item.id !== id));
+    if (selectedItem?.id === id) setSelectedItem(null);
+  };
+
+  return (
+    <div className="flex h-screen bg-[#FDFCFD] text-[#5A5052] overflow-hidden font-sans">
+      {/* 側邊導覽列 */}
+      <aside className="w-64 bg-white border-r border-[#F3EBEB] flex flex-col z-30">
+        <div className="p-8">
+          <h1 className="text-xl font-bold text-[#5A5052] flex items-center gap-2 tracking-tight">
+            <div className="w-8 h-8 bg-[#FCC5CC]/20 rounded-lg flex items-center justify-center">
+                <Package size={18} className="text-[#FCC5CC]" />
             </div>
+            珍藏管理員
+          </h1>
         </div>
-        <h1 class="text-2xl font-bold mb-6 text-center text-gray-700 tracking-tight">雲端相簿</h1>
+        
+        <nav className="flex-1 px-6 space-y-2">
+          <NavItem active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} icon={<LayoutDashboard size={18} />} label="控制面板" />
+          <NavItem active={activeTab === 'collection'} onClick={() => setActiveTab('collection')} icon={<Library size={18} />} label="我的收藏" />
+          <NavItem active={activeTab === 'wishlist'} onClick={() => setActiveTab('wishlist')} icon={<Heart size={18} />} label="願望清單" />
+          <NavItem active={activeTab === 'analysis'} onClick={() => setActiveTab('analysis')} icon={<TrendingUp size={18} />} label="價值分析" />
+        </nav>
 
-        <!-- 登入區塊 -->
-        <div id="login-section" class="flex flex-col items-center">
-            <p class="mb-6 text-gray-500 text-sm">歡迎回來，請登入您的帳號</p>
-            <button id="btn-login" class="w-full flex items-center justify-center bg-white border border-gray-100 rounded-2xl px-6 py-3 text-sm font-semibold text-gray-600 hover:bg-gray-50 focus:outline-none shadow-sm transition-all hover:shadow-md active:scale-95">
-                <img class="w-5 h-5 mr-3" src="https://www.gstatic.com/images/branding/product/1x/gsa_512dp.png" alt="Google Logo">
-                使用 Google 登入
-            </button>
+        <div className="p-6">
+          <button 
+            onClick={() => setIsModalOpen(true)}
+            className="w-full py-2.5 px-4 bg-[#FCC5CC] hover:bg-[#FBAAB5] text-white rounded-lg text-sm font-medium transition-all shadow-sm active:scale-95"
+          >
+            + 新增收藏
+          </button>
         </div>
+      </aside>
 
-        <!-- 使用者操作區塊 (預設隱藏) -->
-        <div id="user-section" class="hidden">
-            <div class="flex items-center justify-between mb-8 p-3 bg-light-pink rounded-2xl border border-white shadow-sm">
-                <div class="flex items-center">
-                    <img id="user-photo" class="w-10 h-10 rounded-xl mr-3 border-2 border-white shadow-sm" src="" alt="User">
-                    <div class="overflow-hidden">
-                        <p id="user-name" class="font-bold text-gray-700 text-sm truncate"></p>
-                        <p id="user-email" class="text-[10px] text-gray-400 truncate"></p>
+      <main className="flex-1 overflow-y-auto">
+        <header className="bg-white/80 backdrop-blur-sm border-b border-[#F3EBEB] px-10 py-5 sticky top-0 z-20 flex justify-between items-center">
+          <div className="relative w-80">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[#D1C2C4]" size={16} />
+            <input 
+              type="text" 
+              placeholder="搜尋名稱或分類..." 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 bg-[#F9F7F7] border-none rounded-full text-sm outline-none focus:ring-1 focus:ring-[#FCC5CC]/50 transition-all"
+            />
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full bg-[#FCC5CC]/10 border border-[#FCC5CC]/20 flex items-center justify-center text-[#FCC5CC] text-xs font-bold">
+              C
+            </div>
+          </div>
+        </header>
+
+        <div className="p-10 max-w-6xl mx-auto w-full">
+          {activeTab === 'dashboard' ? (
+            <div className="space-y-10 animate-in fade-in duration-500">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <StatCard title="估計總價值" value={`$${stats.totalValue.toLocaleString()}`} bgColor="bg-white" iconColor="text-[#FCC5CC]" />
+                <StatCard title="本月新增" value={stats.thisMonthCount} bgColor="bg-white" iconColor="text-[#FCC5CC]" />
+                <StatCard title="平均評分" value={stats.avgRating} bgColor="bg-white" iconColor="text-[#FCC5CC]" />
+              </div>
+
+              <div className="bg-white rounded-2xl border border-[#F3EBEB] overflow-hidden shadow-sm">
+                <div className="px-8 py-5 border-b border-[#F3EBEB] flex justify-between items-center">
+                  <h3 className="font-bold text-[#5A5052]">最近新增項目</h3>
+                  <button onClick={() => setActiveTab('collection')} className="text-[#FCC5CC] text-xs font-semibold hover:text-[#FBAAB5] transition-colors">查看全部</button>
+                </div>
+                <div className="divide-y divide-[#F9F7F7]">
+                  {collections.slice(0, 3).map(item => (
+                    <div key={item.id} className="px-8 py-4 flex items-center justify-between hover:bg-[#FDFCFD] transition-colors">
+                      <div className="flex items-center gap-4">
+                        <div className="w-8 h-8 bg-[#FCC5CC]/5 rounded-md flex items-center justify-center text-[#FCC5CC]"><Package size={16} /></div>
+                        <p className="text-sm font-medium">{item.name}</p>
+                      </div>
+                      <p className="text-sm font-bold text-[#FCC5CC]">${item.value.toLocaleString()}</p>
                     </div>
+                  ))}
                 </div>
-                <button id="btn-logout" class="p-2 text-primary-pink hover:text-red-400 transition-colors">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                    </svg>
-                </button>
+              </div>
             </div>
-
-            <div class="space-y-5">
-                <div class="relative">
-                    <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 ml-1">上傳新圖片</label>
-                    <label for="file-input" class="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-primary-pink/30 rounded-2xl bg-light-pink/30 hover:bg-light-pink/50 cursor-pointer transition-all group">
-                        <div class="flex flex-col items-center justify-center pt-5 pb-6">
-                            <svg class="w-8 h-8 mb-3 text-primary-pink group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
-                            </svg>
-                            <p class="text-xs text-gray-500">點擊或拖放圖片</p>
-                        </div>
-                        <input type="file" id="file-input" accept="image/*" class="hidden">
-                    </label>
+          ) : activeTab === 'collection' ? (
+            <div className="space-y-8 animate-in fade-in duration-500">
+              <div className="flex justify-between items-end">
+                <div>
+                  <h2 className="text-xl font-bold text-[#5A5052]">收藏總覽</h2>
+                  <p className="text-[#A6868A] text-xs mt-1">目前共有 {collections.length} 個收藏項目</p>
                 </div>
-                
-                <div id="preview-container" class="hidden animate-in fade-in zoom-in duration-300">
-                    <div class="relative">
-                        <img id="img-preview" class="w-full h-40 object-cover rounded-2xl border-4 border-white shadow-lg">
-                        <div class="absolute inset-0 rounded-2xl shadow-[inset_0_0_20px_rgba(0,0,0,0.1)] pointer-events-none"></div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredCollections.map(item => (
+                  <div 
+                    key={item.id} 
+                    className="group bg-white rounded-xl border border-[#F3EBEB] p-6 hover:shadow-md hover:shadow-[#FCC5CC]/10 transition-all cursor-pointer"
+                    onClick={() => setSelectedItem(item)}
+                  >
+                    <div className="flex justify-between items-start mb-4">
+                      <span className="text-[10px] font-bold px-2 py-0.5 bg-[#FCC5CC]/10 text-[#FCC5CC] rounded uppercase tracking-wider">{item.category}</span>
+                      <button onClick={(e) => handleDeleteItem(item.id, e)} className="opacity-0 group-hover:opacity-100 p-1 text-[#D1C2C4] hover:text-[#FCC5CC] transition-all"><Trash2 size={14} /></button>
                     </div>
-                </div>
-
-                <button id="btn-upload" class="w-full bg-primary-pink text-white py-3 rounded-2xl font-bold shadow-lg shadow-primary-pink/30 hover:bg-[#FBAEB8] disabled:bg-gray-200 disabled:shadow-none transition-all active:scale-95" disabled>
-                    確認上傳
-                </button>
+                    <h4 className="font-bold text-[#5A5052] mb-1">{item.name}</h4>
+                    <p className="text-xs text-[#D1C2C4] mb-4 flex items-center gap-1"><Calendar size={12} /> {item.date}</p>
+                    <div className="flex justify-between items-end pt-4 border-t border-[#F9F7F7]">
+                      <span className="text-lg font-bold text-[#FCC5CC]">${item.value.toLocaleString()}</span>
+                      <div className="flex items-center gap-0.5 text-xs text-orange-300 font-bold">
+                        <Star size={12} className="fill-orange-300" /> {item.rating}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
-
-            <div class="mt-10">
-                <h2 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4 ml-1">相簿時光機</h2>
-                <div id="records-list" class="space-y-3 max-h-64 overflow-y-auto pr-2">
-                    <p class="text-center text-gray-300 text-sm py-8 font-medium">還沒有任何照片喔</p>
-                </div>
+          ) : activeTab === 'wishlist' ? (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-in fade-in">
+                {wishlist.map(item => (
+                    <div key={item.id} className="bg-white p-6 rounded-xl border border-[#F3EBEB] hover:border-[#FCC5CC]/30 transition-all">
+                        <Heart size={18} className="text-[#FCC5CC] fill-[#FCC5CC]/20 mb-4" />
+                        <h4 className="font-bold text-[#5A5052]">{item.name}</h4>
+                        <p className="text-xs text-[#A6868A] mb-4">{item.category}</p>
+                        <p className="text-sm font-bold text-[#FCC5CC]">${item.expectedPrice.toLocaleString()}</p>
+                    </div>
+                ))}
             </div>
+          ) : (
+            <div className="bg-white p-10 rounded-2xl border border-[#F3EBEB] text-center animate-in fade-in">
+              <div className="w-16 h-16 bg-[#FCC5CC]/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                <TrendingUp size={24} className="text-[#FCC5CC]" />
+              </div>
+              <p className="text-[#A6868A] text-sm italic">正在分析您的收藏資產...</p>
+            </div>
+          )}
         </div>
+      </main>
 
-        <!-- 讀取狀態遮罩 -->
-        <div id="loader" class="loading fixed inset-0 bg-white/60 backdrop-blur-md items-center justify-center z-50">
-            <div class="flex flex-col items-center">
-                <div class="relative w-16 h-16">
-                    <div class="absolute inset-0 rounded-full border-4 border-primary-pink/20"></div>
-                    <div class="absolute inset-0 rounded-full border-4 border-t-primary-pink animate-spin"></div>
+      {/* 側邊詳情 */}
+      {selectedItem && (
+        <div className="fixed inset-0 z-50 flex justify-end">
+          <div className="absolute inset-0 bg-[#5A5052]/5 backdrop-blur-[2px]" onClick={() => setSelectedItem(null)}></div>
+          <div className="relative w-96 bg-white h-full shadow-2xl border-l border-[#F3EBEB] p-10 animate-in slide-in-from-right duration-300">
+            <button onClick={() => setSelectedItem(null)} className="absolute top-6 right-6 p-2 text-[#D1C2C4] hover:text-[#FCC5CC]"><X size={20} /></button>
+            <div className="space-y-8 mt-10">
+              <div className="w-20 h-20 bg-[#FCC5CC]/5 rounded-2xl flex items-center justify-center text-[#FCC5CC] mb-6 mx-auto shadow-inner"><Package size={32} /></div>
+              <div className="text-center">
+                <h3 className="text-xl font-bold text-[#5A5052]">{selectedItem.name}</h3>
+                <p className="text-xs text-[#FCC5CC] mt-2 font-bold tracking-widest uppercase">{selectedItem.category}</p>
+              </div>
+              <div className="grid grid-cols-2 gap-4 py-6 border-y border-[#F9F7F7]">
+                <div>
+                    <p className="text-[10px] text-[#D1C2C4] font-bold uppercase mb-1">價值</p>
+                    <p className="text-lg font-bold text-[#FCC5CC]">${selectedItem.value.toLocaleString()}</p>
                 </div>
-                <p class="mt-4 text-primary-pink font-bold text-sm">少女心中...</p>
+                <div>
+                    <p className="text-[10px] text-[#D1C2C4] font-bold uppercase mb-1">評分</p>
+                    <p className="text-lg font-bold text-orange-300 flex items-center gap-1"><Star size={16} className="fill-orange-300" /> {selectedItem.rating}</p>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <p className="text-[10px] text-[#D1C2C4] font-bold uppercase">描述備註</p>
+                <p className="text-sm leading-relaxed text-[#5A5052] opacity-80 italic">{selectedItem.note || '收藏家尚未添加備註。'}</p>
+              </div>
             </div>
+          </div>
         </div>
+      )}
+
+      {/* 新增彈窗 */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
+          <div className="absolute inset-0 bg-[#5A5052]/10 backdrop-blur-sm" onClick={() => setIsModalOpen(false)}></div>
+          <div className="relative bg-white w-full max-w-md rounded-2xl shadow-xl overflow-hidden animate-in zoom-in duration-200 border border-[#FCC5CC]/20">
+            <div className="p-8 space-y-6">
+              <h2 className="text-lg font-bold text-[#5A5052] border-l-4 border-[#FCC5CC] pl-4">新增收藏品</h2>
+              <div className="space-y-4">
+                <input 
+                  type="text" placeholder="收藏品名稱" 
+                  className="w-full p-3 bg-[#F9F7F7] border-none rounded-xl text-sm outline-none focus:ring-1 focus:ring-[#FCC5CC]"
+                  value={newItem.name} onChange={(e) => setNewItem({...newItem, name: e.target.value})}
+                />
+                <div className="grid grid-cols-2 gap-4">
+                  <input 
+                    type="text" placeholder="類別" 
+                    className="p-3 bg-[#F9F7F7] border-none rounded-xl text-sm outline-none focus:ring-1 focus:ring-[#FCC5CC]"
+                    value={newItem.category} onChange={(e) => setNewItem({...newItem, category: e.target.value})}
+                  />
+                  <input 
+                    type="number" placeholder="價值" 
+                    className="p-3 bg-[#F9F7F7] border-none rounded-xl text-sm outline-none focus:ring-1 focus:ring-[#FCC5CC]"
+                    value={newItem.value} onChange={(e) => setNewItem({...newItem, value: e.target.value})}
+                  />
+                </div>
+              </div>
+              <button 
+                onClick={handleAddItem}
+                className="w-full py-3 bg-[#FCC5CC] hover:bg-[#FBAAB5] text-white rounded-xl font-bold text-sm shadow-md transition-all active:scale-[0.98]"
+              >
+                確認新增
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
+  );
+};
 
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { 
-            getAuth, 
-            signInWithPopup, 
-            GoogleAuthProvider, 
-            onAuthStateChanged, 
-            signOut 
-        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { 
-            getFirestore, 
-            collection, 
-            addDoc, 
-            onSnapshot, 
-            serverTimestamp 
-        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+const NavItem = ({ icon, label, active, onClick }) => (
+  <button 
+    onClick={onClick}
+    className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all ${
+      active 
+        ? 'bg-[#FCC5CC]/10 text-[#FCC5CC] font-bold' 
+        : 'text-[#D1C2C4] hover:text-[#FCC5CC] hover:bg-[#FCC5CC]/5'
+    }`}
+  >
+    {icon}
+    <span className="text-sm">{label}</span>
+  </button>
+);
 
-        const firebaseConfig = {
-            apiKey: "AIzaSyA-qw36OlMwhtkALOJRTyO-k0MSSVivog0",
-            authDomain: "yunn-a3426.firebaseapp.com",
-            projectId: "yunn-a3426",
-            storageBucket: "yunn-a3426.firebasestorage.app",
-            messagingSenderId: "255290205366",
-            appId: "1:255290205366:web:9316ab84a82e0f81c1b217"
-        };
+const StatCard = ({ title, value, bgColor, iconColor }) => (
+  <div className={`${bgColor} p-8 rounded-2xl border border-[#F3EBEB] transition-all hover:border-[#FCC5CC]/30 shadow-sm`}>
+    <p className="text-[10px] font-bold text-[#D1C2C4] uppercase tracking-widest mb-2">{title}</p>
+    <h4 className={`text-2xl font-bold ${iconColor}`}>{value}</h4>
+  </div>
+);
 
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
-        const provider = new GoogleAuthProvider();
-        const appId = "yunn-a3426";
-
-        const loginSection = document.getElementById('login-section');
-        const userSection = document.getElementById('user-section');
-        const btnLogin = document.getElementById('btn-login');
-        const btnLogout = document.getElementById('btn-logout');
-        const btnUpload = document.getElementById('btn-upload');
-        const fileInput = document.getElementById('file-input');
-        const imgPreview = document.getElementById('img-preview');
-        const previewContainer = document.getElementById('preview-container');
-        const recordsList = document.getElementById('records-list');
-        const loader = document.getElementById('loader');
-
-        let currentBase64 = "";
-        let currentUser = null;
-        let unsubscribeRecords = null;
-
-        btnLogin.addEventListener('click', async () => {
-            try {
-                toggleLoader(true);
-                await signInWithPopup(auth, provider);
-            } catch (error) {
-                console.error("Login error", error);
-            } finally {
-                toggleLoader(false);
-            }
-        });
-
-        btnLogout.addEventListener('click', () => signOut(auth));
-
-        onAuthStateChanged(auth, (user) => {
-            currentUser = user;
-            if (user) {
-                loginSection.classList.add('hidden');
-                userSection.classList.remove('hidden');
-                document.getElementById('user-name').innerText = user.displayName;
-                document.getElementById('user-email').innerText = user.email;
-                document.getElementById('user-photo').src = user.photoURL;
-                fetchRecords(user.uid);
-            } else {
-                loginSection.classList.remove('hidden');
-                userSection.classList.add('hidden');
-                if (unsubscribeRecords) unsubscribeRecords();
-                recordsList.innerHTML = '<p class="text-center text-gray-300 text-sm py-8 font-medium">還沒有任何照片喔</p>';
-            }
-        });
-
-        fileInput.addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if (!file) return;
-
-            if (file.size > 800000) {
-                alert("圖片太大了！請選擇小於 800KB 的圖片。");
-                fileInput.value = "";
-                return;
-            }
-
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                currentBase64 = event.target.result;
-                imgPreview.src = currentBase64;
-                previewContainer.classList.remove('hidden');
-                btnUpload.disabled = false;
-            };
-            reader.readAsDataURL(file);
-        });
-
-        btnUpload.addEventListener('click', async () => {
-            if (!currentUser || !currentBase64) return;
-
-            try {
-                toggleLoader(true);
-                const userPhotosCol = collection(db, 'artifacts', appId, 'users', currentUser.uid, 'photos');
-                
-                await addDoc(userPhotosCol, {
-                    imageBase64: currentBase64,
-                    createdAt: serverTimestamp(),
-                    fileName: fileInput.files[0].name
-                });
-
-                fileInput.value = "";
-                previewContainer.classList.add('hidden');
-                btnUpload.disabled = true;
-                currentBase64 = "";
-                
-            } catch (error) {
-                console.error("Upload error", error);
-            } finally {
-                toggleLoader(false);
-            }
-        });
-
-        function fetchRecords(uid) {
-            const userPhotosCol = collection(db, 'artifacts', appId, 'users', uid, 'photos');
-            unsubscribeRecords = onSnapshot(userPhotosCol, (snapshot) => {
-                const docs = [];
-                snapshot.forEach(doc => docs.push({ id: doc.id, ...doc.data() }));
-                docs.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
-
-                if (docs.length === 0) {
-                    recordsList.innerHTML = '<p class="text-center text-gray-300 text-sm py-8 font-medium">還沒有任何照片喔</p>';
-                    return;
-                }
-
-                recordsList.innerHTML = docs.map(doc => `
-                    <div class="group flex items-center p-3 bg-white rounded-2xl border border-light-pink shadow-sm hover:shadow-md transition-all">
-                        <div class="relative">
-                            <img src="${doc.imageBase64}" class="w-14 h-14 object-cover rounded-xl bg-gray-100 border border-light-pink">
-                            <div class="absolute inset-0 rounded-xl shadow-[inset_0_0_10px_rgba(252,197,204,0.2)]"></div>
-                        </div>
-                        <div class="ml-4 flex-1 min-w-0">
-                            <p class="text-sm font-bold text-gray-600 truncate">${doc.fileName || '生活片段'}</p>
-                            <p class="text-[10px] text-primary-pink font-medium uppercase tracking-tighter">
-                                ${doc.createdAt ? new Date(doc.createdAt.seconds * 1000).toLocaleDateString() : '保存中...'}
-                            </p>
-                        </div>
-                        <div class="opacity-0 group-hover:opacity-100 transition-opacity">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-primary-pink" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                            </svg>
-                        </div>
-                    </div>
-                `).join('');
-            });
-        }
-
-        function toggleLoader(show) {
-            loader.classList.toggle('active', show);
-        }
-    </script>
-</body>
-</html>
+export default App;
